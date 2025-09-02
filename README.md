@@ -1,6 +1,6 @@
 # Mercury – Telegram Group Management Bot
 
-[View mercury.stl](repo/mercury.stl)
+![Mercury NASA](https://science.nasa.gov/wp-content/uploads/2023/05/mercury-from-messenger-pia15160-1920x640-1.jpg)
 
 This project is a Telegram group management bot built with [python-telegram-bot](https://docs.python-telegram-bot.org/).  
 The purpose of Mercury is to provide efficient tools for managing Telegram groups.
