@@ -48,9 +48,6 @@ DEBUG=true
 python mercury.py
 ```
 
-<hr>
-
-### Dependencies
-
+## Dependencies
 - python-telegram-bot
 - python-dotenv
