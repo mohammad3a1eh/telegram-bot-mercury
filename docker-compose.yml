@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  mercury-bot:
+    build: .
+    container_name: mercury-bot
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    command: python mercury.py
