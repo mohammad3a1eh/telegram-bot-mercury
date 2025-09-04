@@ -4,9 +4,43 @@ services:
   mercury-bot:
     build: .
     container_name: mercury-bot
-    restart: always
     env_file:
       - .env
     volumes:
       - .:/app
+    depends_on:
+      - db
     command: python mercury.py
+
+  db:
+    image: mysql:8.0
+    container_name: mercury-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: mercury-root-password
+      MYSQL_DATABASE: mercury-database
+      MYSQL_USER: mercury-user
+      MYSQL_PASSWORD: mercury-password
+      MYSQL_ROOT_HOST: '%'
+    command: >
+      --default-authentication-plugin=mysql_native_password
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: mercury-phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_USER: mercury-user
+      PMA_PASSWORD: mercury-password
+      PMA_PORT: 3306
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+
+volumes:
+  db_data:
