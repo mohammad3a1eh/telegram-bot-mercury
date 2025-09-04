@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from os import getenv
 from asyncio import sleep
 from datetime import datetime, timedelta, timezone
+from database import Database
 from logging import (
     debug,
     info,
@@ -21,13 +22,16 @@ from telegram.ext import (
 )
 from messages import *
 from utils import (
-    is_admin,
-    is_owner
+    get_moderators
 )
 
 load_dotenv()
 TOKEN = getenv("BOT_TOKEN")
 DEBUG = getenv("DEBUG")
+MAX_WARNING = int(getenv("MAX_WARNING"))
+
+if MAX_WARNING > 5:
+    MAX_WARNING = 5
 
 if DEBUG == "true":
     basicConfig(level=DEBUGG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -36,18 +40,27 @@ else:
 
 info("Bot started")
 
+db = Database()
+
+info("Database initialized")
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     debug("bot start in PV")
     await update.message.reply_text(MSG_START)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if await is_admin(update, context):
-        text = update.message.text.strip()
+    owner , admins = await get_moderators(update, context)
+    admin_ids = [admin.user.id for admin in admins]
+    owner_id = owner[0].user.id if owner else None
+
+    text = update.message.text.strip()
+    user_id = update.effective_user.id
+
+    if user_id in [admin.user.id for admin in admins] or user_id == owner_id:
         if update.message.reply_to_message:
             debug("admin replay message")
             target_user = update.message.reply_to_message.from_user
             target_message = update.message.reply_to_message
-
 
             if text == "حذف کاربر":
                 # This command deletes the user.
@@ -80,15 +93,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     until_date=until_time
                 )
 
+                await update.message.delete()
+
                 msg = await context.bot.send_message(
                     chat_id=update.effective_chat.id,
-                    text=MSG_YOU_SILENT_10_MINUTES,
+                    text="شما برای 10 دقیقه بیصدا شدید.",
                     reply_to_message_id=target_message.message_id
                 )
                 await sleep(10)
                 await msg.delete()
-
-                await update.message.delete()
 
             elif text == "حذف بی صدا" or text == "حذف بیصدا":
                 # This command silently deletes the user.
@@ -109,6 +122,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
 
                 await update.message.delete()
+
+                msg = await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="ادمین شما را از بیصدا خارج کرد.",
+                    reply_to_message_id=target_message.message_id
+                )
+                await sleep(10)
+                await msg.delete()
 
             elif text == "پین":
                 # This command pins the message.
@@ -142,25 +163,91 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 await update.message.delete()
 
+            elif text == "اخطار":
+                debug("warning user called")
+                # check who sent the command
+                sender_id = update.message.from_user.id
+
+                if sender_id in admin_ids and sender_id != owner_id:
+                    if target_user.id == owner_id:
+                        msg = await context.bot.send_message(
+                            chat_id=update.effective_chat.id,
+                            text="شما نمیتوانید به سازنده اخطار بدهید.",
+                            reply_to_message_id=update.message.message_id
+                        )
+                        await update.message.delete()
+                        await sleep(10)
+                        await msg.delete()
+                        return
+                    elif target_user.id in admin_ids:
+                        msg = await context.bot.send_message(
+                            chat_id=update.effective_chat.id,
+                            text="شما نمیتوانید به ادمین اخطار بدهید.",
+                            reply_to_message_id=update.message.message_id
+                        )
+                        await update.message.delete()
+                        await sleep(10)
+                        await msg.delete()
+                        return
+                    else:
+                        db.add_warning(target_user.id)
+
+                elif sender_id == owner_id:
+                    db.add_warning(target_user.id)
+
+                warnings = db.get_warning(target_user.id)
+                if warnings >= MAX_WARNING:
+                    msg = await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text="کاربر به علت پر شدن ظرفیت اخطارها حذف خواهد شد.",
+                        reply_to_message_id=update.message.message_id
+                    )
+                    await context.bot.ban_chat_member(
+                        chat_id=update.effective_chat.id,
+                        user_id=target_user.id
+                    )
+
+                    db.del_member(target_user.id)
+
+                    await update.message.delete()
+                else:
+                    circles = " ".join(["🔴" if i < warnings else "⚪" for i in range(MAX_WARNING)])
+
+                    msg = await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=(
+                            f" کاربر {target_user.first_name} یک اخطار دریافت کرد.\n"
+                            f"تعداد اخطارها: {circles}"
+                        ),
+                        reply_to_message_id=target_message.message_id
+                    )
+                    await update.message.delete()
+
+                await sleep(10)
+                await msg.delete()
+
         else:
             pass
 
-    if await is_owner(update, context):
+    if user_id == owner_id:
         debug("owner replay message")
-        text = update.message.text.strip()
         if update.message.reply_to_message:
             target_user = update.message.reply_to_message.from_user
-            admins = await context.bot.get_chat_administrators(update.effective_chat.id)
-            admin_ids = [admin.user.id for admin in admins]
+            target_message = update.message.reply_to_message
 
             if text == "ارتقا به ادمین":
                 # This command will promote the user to admin if they are not already an admin.
                 debug("promote user to admin called")
                 if target_user.id in admin_ids:
-                    await context.bot.send_message(
-                        chat_id=update.message.from_user.id,
-                        text=MSG_USER_ALREADY_ADMIN
+                    await update.message.delete()
+
+                    msg = await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text="کاربر از قبل ادمین است.",
+                        reply_to_message_id=target_message.message_id
                     )
+                    await sleep(10)
+                    await msg.delete()
                     return
 
                 await context.bot.promote_chat_member(
@@ -180,10 +267,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # This command removes the specified user from the admin role if they are an admin.
                 debug("remove admin from admins called")
                 if target_user.id not in admin_ids:
-                    await context.bot.send_message(
-                        chat_id=update.message.from_user.id,
-                        text=MSG_USER_ALREADY_NOT_ADMIN
+                    await update.message.delete()
+
+                    msg = await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text="کاربر از قبل نیست.",
+                        reply_to_message_id=target_message.message_id
                     )
+                    await sleep(10)
+                    await msg.delete()
+
                     return
 
                 await context.bot.promote_chat_member(
@@ -203,11 +296,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if text == "حذف ربات از گروه":
                 # This command removes the bot from the group.
                 debug("remove bot called")
-                await update.message.reply_text(MSG_DELETE_FROM_GROUP)
+                await update.message.reply_text("ربات توسط سازنده از گروه حذف خواهد شد.")
 
                 await update.message.delete()
 
                 await context.bot.leave_chat(update.effective_chat.id)
+
+
+    # Add a user to the database if it does not already exist.
+    db.check_or_add_member(
+        user_id=user_id,
+        username=update.message.from_user.username,
+        first_name=update.message.from_user.first_name,
+        last_name=update.message.from_user.last_name,
+    )
+
+    # Add to sent message count
+    db.increment_messages(user_id=user_id)
 
 def main():
     app = Application.builder().token(TOKEN).build()
