@@ -14,6 +14,7 @@ The purpose of Mercury is to provide efficient tools for managing Telegram group
 - Pin a message by replying with `پین`
 - Pin a message silently (without notification) by replying with `پین بی صدا`
 - Unpin a message by replying with `حذف پین`
+- Warn users with `اخطار`
 
 ### For the Group Owner
 - Promote a user to admin by replying with `ارتقا به ادمین`
@@ -24,30 +25,15 @@ The purpose of Mercury is to provide efficient tools for managing Telegram group
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/username/atarod-bot.git
-cd atarod-bot
+git clone https://github.com/mohammad3a1eh/telegram-bot-mercury.git
+cd telegram-bot-mercury
 ```
 
-### 2. Create a virtual environment (optional but recommended)
-```bash
-python -m venv .venv
-.venv\Scripts\activate      # Windows
-```
+Before running the bot with Docker, make sure to create and properly configure the .env file with your bot token and any other required environment variables.
 
-### 3. Install dependencies
+### 2. Run with Docker
 ```bash
-pip install -r requirements.txt
-```
-
-### 4. Configure environment variables
-```bash
-BOT_TOKEN=your_bot_token_here
-DEBUG=true
-```
-
-### 5. Run the bot
-```bash
-python mercury.py
+docker-compose up -d
 ```
 
 ## Dependencies
