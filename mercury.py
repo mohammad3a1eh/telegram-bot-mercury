@@ -3,6 +3,8 @@ from os import getenv
 from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 from database import Database
+from requests import get, exceptions
+from random import choice
 from logging import (
     debug,
     info,
@@ -306,79 +308,119 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await lock_end(update=update, context=context)
                 await update.message.delete()
 
-    if user_id == owner_id:
-        debug("owner replay message")
-        if update.message.reply_to_message:
-            target_user = update.message.reply_to_message.from_user
-            target_message = update.message.reply_to_message
+        if user_id == owner_id:
+            debug("owner replay message")
+            if update.message.reply_to_message:
+                target_user = update.message.reply_to_message.from_user
+                target_message = update.message.reply_to_message
 
-            if text == "ارتقا به ادمین":
-                # This command will promote the user to admin if they are not already an admin.
-                debug("promote user to admin called")
-                if target_user.id in admin_ids:
+                if text == "ارتقا به ادمین":
+                    # This command will promote the user to admin if they are not already an admin.
+                    debug("promote user to admin called")
+                    if target_user.id in admin_ids:
+                        await update.message.delete()
+
+                        msg = await context.bot.send_message(
+                            chat_id=update.effective_chat.id,
+                            text="کاربر از قبل ادمین است.",
+                            reply_to_message_id=target_message.message_id
+                        )
+                        await sleep(10)
+                        await msg.delete()
+                        return
+
+                    await context.bot.promote_chat_member(
+                        chat_id=update.effective_chat.id,
+                        user_id=target_user.id,
+                        can_change_info=True,
+                        can_delete_messages=True,
+                        can_invite_users=True,
+                        can_restrict_members=True,
+                        can_pin_messages=True,
+                        can_promote_members=False
+                    )
+
                     await update.message.delete()
 
-                    msg = await context.bot.send_message(
+                elif text == "حذف از ادمین":
+                    # This command removes the specified user from the admin role if they are an admin.
+                    debug("remove admin from admins called")
+                    if target_user.id not in admin_ids:
+                        await update.message.delete()
+
+                        msg = await context.bot.send_message(
+                            chat_id=update.effective_chat.id,
+                            text="کاربر از قبل نیست.",
+                            reply_to_message_id=target_message.message_id
+                        )
+                        await sleep(10)
+                        await msg.delete()
+
+                        return
+
+                    await context.bot.promote_chat_member(
                         chat_id=update.effective_chat.id,
-                        text="کاربر از قبل ادمین است.",
-                        reply_to_message_id=target_message.message_id
+                        user_id=target_user.id,
+                        can_change_info=False,
+                        can_delete_messages=False,
+                        can_invite_users=False,
+                        can_restrict_members=False,
+                        can_pin_messages=False,
+                        can_promote_members=False
                     )
-                    await sleep(10)
-                    await msg.delete()
-                    return
 
-                await context.bot.promote_chat_member(
-                    chat_id=update.effective_chat.id,
-                    user_id=target_user.id,
-                    can_change_info=True,
-                    can_delete_messages=True,
-                    can_invite_users=True,
-                    can_restrict_members=True,
-                    can_pin_messages=True,
-                    can_promote_members=False
-                )
-
-                await update.message.delete()
-
-            elif text == "حذف از ادمین":
-                # This command removes the specified user from the admin role if they are an admin.
-                debug("remove admin from admins called")
-                if target_user.id not in admin_ids:
                     await update.message.delete()
 
-                    msg = await context.bot.send_message(
-                        chat_id=update.effective_chat.id,
-                        text="کاربر از قبل نیست.",
-                        reply_to_message_id=target_message.message_id
+            else:
+                if text == "حذف ربات از گروه":
+                    # This command removes the bot from the group.
+                    debug("remove bot called")
+                    await update.message.reply_text("ربات توسط سازنده از گروه حذف خواهد شد.")
+
+                    await update.message.delete()
+
+                    await context.bot.leave_chat(update.effective_chat.id)
+
+    if text == "میم":
+        # This command sends a random meme
+        subreddits = ["memes", "funny", "dankmemes", "MinecraftMemes"]
+        subreddit = choice(subreddits)
+
+        try:
+            url = f"https://meme-api.com/gimme/{subreddit}"
+            res = get(url, timeout=5)
+            res.raise_for_status()
+
+            if "application/json" in res.headers.get("Content-Type", ""):
+                data = res.json()
+                meme_url = data.get("url")
+                title = data.get("title", "")
+
+                if meme_url:
+                    await update.message.reply_photo(
+                        photo=meme_url,
+                        caption=title,
+                        reply_to_message_id=update.message.message_id
                     )
+                else:
+
+                    error_msg = await update.message.reply_text("😅 میم پیدا نشد، دوباره امتحان کن!")
+                    await update.message.delete()
                     await sleep(10)
-                    await msg.delete()
+                    await error_msg.delete()
 
-                    return
-
-                await context.bot.promote_chat_member(
-                    chat_id=update.effective_chat.id,
-                    user_id=target_user.id,
-                    can_change_info=False,
-                    can_delete_messages=False,
-                    can_invite_users=False,
-                    can_restrict_members=False,
-                    can_pin_messages=False,
-                    can_promote_members=False
-                )
-
+            else:
+                error_msg = await update.message.reply_text("📛 مشکل در دریافت میم (خروجی معتبر نبود).")
                 await update.message.delete()
+                await sleep(10)
+                await error_msg.delete()
 
-        else:
-            if text == "حذف ربات از گروه":
-                # This command removes the bot from the group.
-                debug("remove bot called")
-                await update.message.reply_text("ربات توسط سازنده از گروه حذف خواهد شد.")
-
-                await update.message.delete()
-
-                await context.bot.leave_chat(update.effective_chat.id)
-
+        except exceptions.RequestException as e:
+            error_msg = await update.message.reply_text("🚧 فعلاً به میم‌ها دسترسی ندارم، یه کم بعد دوباره امتحان کن.")
+            await update.message.delete()
+            await sleep(10)
+            await error_msg.delete()
+            print("Error fetching meme:", e)
 
     # Add a user to the database if it does not already exist.
     db.check_or_add_member(

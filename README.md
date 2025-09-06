@@ -26,6 +26,9 @@ The purpose of Mercury is to provide efficient tools for managing Telegram group
 - Demote an admin by replying with `حذف از ادمین`
 - Remove the bot from the group by sending `حذف ربات از گروه`
 
+### For all users
+- Get a random meme with `میم`
+
 All administrator commands are also available to the group owner
 
 ## Installation and Setup
