@@ -7,7 +7,7 @@ The purpose of Mercury is to provide efficient tools for managing Telegram group
 
 ## Features
 
-### For Administrators
+### For Administrators (replay)
 - Remove a user by replying to their message with `حذف کاربر`
 - Mute a user for 10 minutes by replying with `بی صدا`
 - Unmute a user by replying with `حذف بی صدا`
@@ -16,10 +16,17 @@ The purpose of Mercury is to provide efficient tools for managing Telegram group
 - Unpin a message by replying with `حذف پین`
 - Warn users with `اخطار`
 
-### For the Group Owner
+### For Administrators (non replay)
+- Enable text-only mode with `قفل رسانه`
+- Enable full lock mode with `قفل کامل`
+- Disable lock with `حذف قفل`
+
+### For the Group Owner (replay)
 - Promote a user to admin by replying with `ارتقا به ادمین`
 - Demote an admin by replying with `حذف از ادمین`
 - Remove the bot from the group by sending `حذف ربات از گروه`
+
+All administrator commands are also available to the group owner
 
 ## Installation and Setup
 
