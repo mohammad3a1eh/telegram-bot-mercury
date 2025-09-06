@@ -46,3 +46,7 @@ docker-compose up -d
 ## Dependencies
 - python-telegram-bot
 - python-dotenv
+- mysql-connector-python
+- python-dotenv
+
+To check all project dependencies, you can open the [requirements.txt](requirements.txt) file.
