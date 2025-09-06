@@ -11,7 +11,8 @@ from logging import (
     DEBUG as DEBUGG,
 )
 from telegram import (
-    Update
+    Update,
+    ChatPermissions
 )
 from telegram.ext import (
     Application,
@@ -47,6 +48,69 @@ info("Database initialized")
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     debug("bot start in PV")
     await update.message.reply_text(MSG_START)
+
+async def lock_text_only(update, context):
+    permissions = ChatPermissions(
+        can_send_messages=True,
+        can_send_audios=False,
+        can_send_documents=False,
+        can_send_photos=False,
+        can_send_videos=False,
+        can_send_video_notes=False,
+        can_send_voice_notes=False,
+        can_send_polls=False,
+        can_send_other_messages=False,
+        can_add_web_page_previews=False
+    )
+    chat_id = update.effective_chat.id
+    await context.bot.set_chat_permissions(chat_id, permissions=permissions)
+    msg = await update.message.reply_text("قفل رسانه گروه فعال شد.")
+
+    await sleep(10)
+    await msg.delete()
+
+async def lock_full(update, context):
+    permissions = ChatPermissions(
+        can_send_messages=False,
+        can_send_audios=False,
+        can_send_documents=False,
+        can_send_photos=False,
+        can_send_videos=False,
+        can_send_video_notes=False,
+        can_send_voice_notes=False,
+        can_send_polls=False,
+        can_send_other_messages=False,
+        can_add_web_page_previews=False
+    )
+
+    chat_id = update.effective_chat.id
+    await context.bot.set_chat_permissions(chat_id, permissions=permissions)
+    msg = await update.message.reply_text("قفل کامل گروه فعال شد.")
+
+    await sleep(10)
+    await msg.delete()
+
+async def lock_end(update, context):
+    permissions = ChatPermissions(
+        can_send_messages=True,
+        can_send_audios=True,
+        can_send_documents=True,
+        can_send_photos=True,
+        can_send_videos=True,
+        can_send_video_notes=True,
+        can_send_voice_notes=True,
+        can_send_polls=True,
+        can_send_other_messages=True,
+        can_add_web_page_previews=True
+    )
+
+    chat_id = update.effective_chat.id
+
+    await context.bot.set_chat_permissions(chat_id, permissions=permissions)
+    msg = await update.message.reply_text("قفل گروه برداشته شد.")
+
+    await sleep(10)
+    await msg.delete()
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     owner , admins = await get_moderators(update, context)
@@ -227,7 +291,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await msg.delete()
 
         else:
-            pass
+            if text == "قفل رسانه":
+                # This command allows users to only send text data.
+                await lock_text_only(update=update, context=context)
+                await update.message.delete()
+
+            elif text == "قفل کامل":
+                # This command completely restricts users from sending messages.
+                await lock_full(update=update, context=context)
+                await update.message.delete()
+
+            elif text == "حذف قفل":
+                # This command will reopen the sending of messages and media.
+                await lock_end(update=update, context=context)
+                await update.message.delete()
 
     if user_id == owner_id:
         debug("owner replay message")
